@@ -13,8 +13,15 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
+	"github.com/kelseyhightower/envconfig"
 	"github.com/techsysfr/paastek-poc/bo"
 )
+
+const prefix = "PAASTEK"
+
+type configuration struct {
+	TableName string `envconfig:"tablename" required:"true"`
+}
 
 type ret struct {
 	V   bo.AWSBillingItem
@@ -81,6 +88,13 @@ func parse(r io.Reader) chan ret {
 }
 
 func main() {
+	var config configuration
+	err := envconfig.Process(prefix, &config)
+	if err != nil {
+		envconfig.Usage(prefix, &config)
+		log.Fatal(err.Error())
+	}
+
 	// Create the session for dynamodb
 	sess, err := session.NewSession()
 	if err != nil {
@@ -97,7 +111,7 @@ func main() {
 		}
 		params := &dynamodb.PutItemInput{
 			Item:      item,
-			TableName: aws.String("pricing"),
+			TableName: aws.String(config.TableName),
 		}
 		log.Println(item)
 		// Now put the item, discarding the result
