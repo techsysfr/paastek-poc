@@ -1,0 +1,9 @@
+{
+   "ID": "a",
+   "Family": "mafamille",
+   "Size": "micro",
+   "Hardware": {
+      "CPU": "i7",
+      "RAM": 2
+   }
+}
