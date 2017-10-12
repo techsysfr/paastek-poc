@@ -1,5 +1,15 @@
 syntax = "proto3";
 
+package bo;
+
+service Pricing {
+    rpc ListItem(ItemID) returns (LineItem);
+}
+
+message ItemID {
+    string IdentityLineItemID = 1;
+}
+
 message LineItem {
     string IdentityLineItemID = 1;
     string IdentityTimeInterval = 2;
