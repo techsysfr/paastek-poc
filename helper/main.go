@@ -113,7 +113,6 @@ func main() {
 			Item:      item,
 			TableName: aws.String(config.TableName),
 		}
-		log.Println(item)
 		// Now put the item, discarding the result
 		_, err = svc.PutItem(params)
 
