@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"log"
 	"net"
 
@@ -13,10 +14,15 @@ import (
 	"github.com/techsysfr/paastek-poc/bo"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/testdata"
+
+	"google.golang.org/grpc/credentials"
 )
 
 type configuration struct {
 	ListenAddress string `envconfig:"ADDRESS" required:"true"`
+	CertFile      string `envconfig:"CERT_FILE" default:"google.golang.org/grpc/testdata/server1.pem" required:"true"`
+	KeyFile       string `envconfig:"KEY_FILE" default:"google.golang.org/grpc/testdata/server1.key" required:"true"`
 }
 
 type pricingService struct {
@@ -51,6 +57,13 @@ func (p *pricingService) ListItem(_ context.Context, itemID *bo.ItemID) (*bo.Lin
 
 func main() {
 	var config configuration
+
+	usage := flag.Bool("help", false, "Display usage and exit")
+	flag.Parse()
+	if *usage {
+		envconfig.Usage("PRICING", &config)
+		return
+	}
 	err := envconfig.Process("PRICING", &config)
 	if err != nil {
 		log.Fatal(err)
@@ -59,7 +72,20 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
-	myServer := grpc.NewServer()
+
+	var opts []grpc.ServerOption
+	if config.CertFile == "google.golang.org/grpc/testdata/server1.pem" {
+		config.CertFile = testdata.Path("server1.pem")
+	}
+	if config.KeyFile == "google.golang.org/grpc/testdata/server1.key" {
+		config.KeyFile = testdata.Path("server1.key")
+	}
+	creds, err := credentials.NewServerTLSFromFile(config.CertFile, config.KeyFile)
+	if err != nil {
+		log.Fatalf("Failed to generate credentials %v", err)
+	}
+	opts = []grpc.ServerOption{grpc.Creds(creds)}
+	myServer := grpc.NewServer(opts...)
 	// Create the session for dynamodb
 	sess, err := session.NewSession()
 	if err != nil {

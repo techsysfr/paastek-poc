@@ -3,19 +3,24 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"log"
 	"net/http"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/techsysfr/paastek-poc/bo"
+	"google.golang.org/grpc/testdata"
 )
 
 type configuration struct {
-	PricingService string `envconfig:"PRICING_SERVICE" required:"true"`
-	ListenAddress  string `envconfig:"LISTEN_ADDRESS" required:"true"`
+	PricingService     string `envconfig:"PRICING_SERVICE" required:"true"`
+	ListenAddress      string `envconfig:"LISTEN_ADDRESS" required:"true"`
+	CAFile             string `envconfig:"CA_FILE" default:"google.golang.org/grpc/testdata/ca.pem" required:"true"`
+	ServerHostOverride string `envconfig:"SERVER_HOST_OVERRIDE" required:"true" default:"x.test.google.fr"`
 }
 
 type handler struct {
@@ -40,11 +45,28 @@ func (h *handler) getLineItem(w http.ResponseWriter, r *http.Request, ps httprou
 
 func main() {
 	var config configuration
+	usage := flag.Bool("help", false, "Display usage and exit")
+	flag.Parse()
+	if *usage {
+		envconfig.Usage("PAASTEK", &config)
+		return
+	}
 	err := envconfig.Process("PAASTEK", &config)
 	if err != nil {
 		log.Fatal(err)
 	}
-	conn, err := grpc.Dial(config.PricingService, grpc.WithInsecure())
+
+	var opts []grpc.DialOption
+	if config.CAFile == "google.golang.org/grpc/testdata/ca.pem" {
+		config.CAFile = testdata.Path("ca.pem")
+	}
+	creds, err := credentials.NewClientTLSFromFile(config.CAFile, config.ServerHostOverride)
+	if err != nil {
+		log.Fatalf("Failed to create TLS credentials %v", err)
+	}
+	opts = append(opts, grpc.WithTransportCredentials(creds))
+
+	conn, err := grpc.Dial(config.PricingService, opts...)
 	if err != nil {
 		log.Fatal("Cannot dial grpc service ", err)
 	}
